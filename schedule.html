@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スケジュールのご予約 | Kyタイル株式会社 沖縄支部</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans JP',sans-serif;background:#F4F3EF;color:#1A1A18;min-height:100vh;padding:20px 16px 60px}
+.container{max-width:560px;margin:0 auto}
+.header{text-align:center;padding:28px 0 24px}
+.header h1{font-size:20px;font-weight:700;margin-bottom:8px}
+.header p{font-size:13px;color:#6A6760;line-height:1.7}
+/* Steps */
+.steps{display:flex;align-items:center;justify-content:center;margin-bottom:24px}
+.step{display:flex;flex-direction:column;align-items:center;gap:4px}
+.step-num{width:28px;height:28px;border-radius:50%;border:2px solid #D4D0C5;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#A8A49C;background:#fff;transition:all .2s}
+.step-num.active{border-color:#2B59E0;color:#2B59E0;background:#EDF1FD}
+.step-num.done{border-color:#1A8A5A;color:#fff;background:#1A8A5A}
+.step-label{font-size:10px;color:#A8A49C;font-weight:500}
+.step-label.active{color:#2B59E0}
+.step-connector{width:48px;height:2px;background:#D4D0C5;margin-bottom:18px}
+/* Card */
+.card{background:#fff;border:1px solid #E8E6DF;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:16px;overflow:hidden}
+.card-header{padding:14px 18px;border-bottom:1px solid #E8E6DF;font-size:13px;font-weight:700;color:#6A6760;display:flex;align-items:center;justify-content:space-between}
+.back-btn{font-size:12px;color:#6A6760;cursor:pointer;background:none;border:none;font-family:inherit;padding:0}
+.back-btn:hover{color:#2B59E0}
+/* Calendar */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #E8E6DF}
+.cal-nav-btn{width:32px;height:32px;border-radius:8px;border:1px solid #E8E6DF;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:#6A6760;transition:all .12s}
+.cal-nav-btn:hover{background:#F4F3EF;border-color:#D4D0C5}
+.cal-month{font-size:15px;font-weight:700}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:0;padding:8px}
+.cal-dow{text-align:center;font-size:10px;font-weight:700;color:#A8A49C;padding:6px 0}
+.cal-dow.sun{color:#C0392B}
+.cal-dow.sat{color:#2B59E0}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:500;position:relative;margin:2px;transition:all .12s;cursor:default}
+.cal-day.available{cursor:pointer;color:#1A1A18}
+.cal-day.available:hover{background:#EDF1FD;color:#2B59E0}
+.cal-day.selected{background:#2B59E0!important;color:#fff!important}
+.cal-day.today{font-weight:700}
+.cal-day.today:not(.selected)::after{content:'';width:4px;height:4px;border-radius:50%;background:#2B59E0;position:absolute;bottom:3px}
+.cal-day.disabled{color:#D4D0C5}
+.cal-day.full{color:#D4D0C5}
+.cal-day.full::after{content:'×';font-size:9px;color:#D4D0C5;position:absolute;bottom:1px}
+.cal-day.sun-color{color:#C0392B}
+.cal-day.sat-color{color:#2B59E0}
+.cal-day.available.sun-color:hover{background:#FDECEA}
+.cal-day.available.sat-color:hover{background:#EDF1FD}
+/* Time slots */
+.slots-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:16px}
+.slot-btn{padding:12px 8px;border-radius:8px;border:1.5px solid #E8E6DF;background:#fff;font-size:14px;font-weight:600;color:#1A1A18;cursor:pointer;transition:all .12s;text-align:center;font-family:'Noto Sans JP',sans-serif}
+.slot-btn:hover:not(:disabled){border-color:#2B59E0;color:#2B59E0;background:#EDF1FD}
+.slot-btn.selected{border-color:#2B59E0;background:#2B59E0;color:#fff}
+.slot-btn:disabled{background:#F4F3EF;color:#D4D0C5;cursor:not-allowed;border-color:#E8E6DF;text-decoration:line-through}
+/* Form */
+.form-body{padding:16px}
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;font-weight:500;color:#6A6760;margin-bottom:5px;display:block}
+.req{color:#C0392B}
+.form-control{width:100%;border:1.5px solid #E8E6DF;border-radius:8px;padding:10px 12px;font-size:14px;font-family:'Noto Sans JP',sans-serif;color:#1A1A18;background:#fff;outline:none;transition:border-color .12s}
+.form-control:focus{border-color:#2B59E0}
+textarea.form-control{resize:vertical;min-height:80px}
+.summary-box{background:#EDF1FD;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#2B59E0;font-weight:500}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;padding:14px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;border:none;font-family:'Noto Sans JP',sans-serif;transition:all .12s}
+.btn-primary{background:#2B59E0;color:#fff}
+.btn-primary:hover{background:#2348C4}
+.btn-primary:disabled{background:#A8A49C;cursor:not-allowed}
+/* Success */
+.success-wrap{text-align:center;padding:48px 24px}
+.success-icon{width:72px;height:72px;border-radius:50%;background:#E7F7EF;border:3px solid #1A8A5A;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:32px}
+.success-wrap h2{font-size:20px;font-weight:700;margin-bottom:10px}
+.success-wrap p{font-size:13px;color:#6A6760;line-height:1.8}
+.detail-box{margin-top:20px;padding:14px;background:#F4F3EF;border-radius:8px;font-size:13px;text-align:left;line-height:2}
+/* Loading */
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;z-index:100;font-size:14px;color:#6A6760;font-weight:500;gap:10px}
+.spinner{width:20px;height:20px;border:2px solid #E8E6DF;border-top-color:#2B59E0;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.note{font-size:11px;color:#A8A49C;text-align:center;margin-top:8px;line-height:1.6}
+</style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+<div class="container">
+  <div class="header">
+    <div style="font-size:28px;margin-bottom:10px">📅</div>
+    <h1>スケジュールのご予約</h1>
+    <p>Kyタイル株式会社 沖縄支部<br>ご都合の良い日時をお選びください</p>
+  </div>
+
+  <!-- ステップ表示 -->
+  <div class="steps">
+    <div class="step">
+      <div class="step-num active" id="s1n">1</div>
+      <div class="step-label active" id="s1l">日付</div>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step">
+      <div class="step-num" id="s2n">2</div>
+      <div class="step-label" id="s2l">時間</div>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step">
+      <div class="step-num" id="s3n">3</div>
+      <div class="step-label" id="s3l">お客様情報</div>
+    </div>
+  </div>
+
+  <!-- カレンダー -->
+  <div class="card" id="card-cal">
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="calShift(-1)">◀</button>
+      <div class="cal-month" id="cal-label"></div>
+      <button class="cal-nav-btn" onclick="calShift(1)">▶</button>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-dow sun">日</div>
+      <div class="cal-dow">月</div>
+      <div class="cal-dow">火</div>
+      <div class="cal-dow">水</div>
+      <div class="cal-dow">木</div>
+      <div class="cal-dow">金</div>
+      <div class="cal-dow sat">土</div>
+    </div>
+    <div class="cal-grid" id="cal-days"></div>
+    <p class="note" style="padding:0 12px 12px">日曜・祝日は受付不可。「×」は満席です。</p>
+  </div>
+
+  <!-- 時間選択 -->
+  <div class="card" id="card-slots" style="display:none">
+    <div class="card-header">
+      <span id="slots-title">時間を選択</span>
+      <button class="back-btn" onclick="resetDate()">← 日付を変更</button>
+    </div>
+    <div class="slots-grid" id="slots-grid"></div>
+  </div>
+
+  <!-- 入力フォーム -->
+  <div class="card" id="card-form" style="display:none">
+    <div class="card-header">
+      <span>お客様情報</span>
+      <button class="back-btn" onclick="resetTime()">← 時間を変更</button>
+    </div>
+    <div class="form-body">
+      <div class="summary-box" id="form-summary"></div>
+      <div class="form-group">
+        <label class="form-label">会社名</label>
+        <input class="form-control" id="f-company" type="text" placeholder="〇〇建設株式会社">
+      </div>
+      <div class="form-group">
+        <label class="form-label">お名前 <span class="req">*</span></label>
+        <input class="form-control" id="f-name" type="text" placeholder="山田 太郎">
+      </div>
+      <div class="form-group">
+        <label class="form-label">電話番号 <span class="req">*</span></label>
+        <input class="form-control" id="f-phone" type="tel" placeholder="090-0000-0000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ご要望・備考</label>
+        <textarea class="form-control" id="f-msg" placeholder="ご自由にご記入ください"></textarea>
+      </div>
+      <button class="btn btn-primary" id="submit-btn" onclick="submitBooking()">予約を確定する</button>
+      <p class="note">送信後、担当者より折り返しご連絡いたします。</p>
+    </div>
+  </div>
+
+  <!-- 完了画面 -->
+  <div id="success-screen" style="display:none">
+    <div class="card">
+      <div class="success-wrap">
+        <div class="success-icon">✓</div>
+        <h2>ご予約を承りました</h2>
+        <p>内容を確認の上、担当者より<br>追ってご連絡いたします。</p>
+        <div class="detail-box" id="success-detail"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// ★ EmailJS 設定（セットアップ後にここを書き換え）
+// ============================================================
+const EMAILJS_PUBLIC_KEY  = 'ckhvy1c_x1FhJh7OV';
+const EMAILJS_SERVICE_ID  = 'service_999jyjf';
+const EMAILJS_TEMPLATE_ID = 'xmi0jy1';
+const NOTIFY_EMAIL = 'norinpinwork@gmail.com';
+// ============================================================
+
+// Supabase（TileCRM と同じプロジェクト）
+const SB_URL = 'https://dfkplbwymlocuyocffsx.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRma3BsYnd5bWxvY3V5b2NmZnN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MDA3MDgsImV4cCI6MjA5NDI3NjcwOH0.I2KNMCt76i5BVgQyykJrheNIPz8aoAIhHiiBExxfNTg';
+
+// 受付スロット（10:30〜16:30、昼休み 12:00〜12:30 除外）
+const ALL_SLOTS = ['10:30','11:00','11:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30'];
+
+// 休日（0=日曜のみ。土曜は受付）
+const CLOSED_DOW = [0];
+
+// ============================================================
+
+emailjs.init(EMAILJS_PUBLIC_KEY);
+
+let calOffset = 0;
+let selectedDate = null;
+let selectedTime = null;
+let takenSlots = {};
+
+async function sbGet(table, query = '') {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}${query}`, {
+    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function loadTaken() {
+  const today = getToday();
+  const [bookings, apos, visits] = await Promise.all([
+    sbGet('schedule_bookings', `?booked_date=gte.${today}&status=neq.cancelled`).catch(() => []),
+    sbGet('apos', `?visit_date=gte.${today}`).catch(() => []),
+    sbGet('visits', `?visited_at=gte.${today}`).catch(() => []),
+  ]);
+
+  const t = {};
+
+  // 既存予約
+  bookings.forEach(b => {
+    if (!t[b.booked_date]) t[b.booked_date] = new Set();
+    t[b.booked_date].add(b.booked_time);
+  });
+
+  // CRM アポ（時間付きのみ）
+  apos.forEach(a => {
+    const d = a.visit_datetime ? a.visit_datetime.slice(0, 10) : a.visit_date;
+    const tm = a.visit_datetime && a.visit_datetime.length > 10 ? a.visit_datetime.slice(11, 16) : null;
+    if (d && tm && ALL_SLOTS.includes(tm)) {
+      if (!t[d]) t[d] = new Set();
+      t[d].add(tm);
+    }
+  });
+
+  // CRM 訪問履歴（時間付きのみ）
+  visits.forEach(v => {
+    const d = v.visited_at ? v.visited_at.slice(0, 10) : null;
+    const tm = v.visit_time || null;
+    if (d && tm && ALL_SLOTS.includes(tm)) {
+      if (!t[d]) t[d] = new Set();
+      t[d].add(tm);
+    }
+  });
+
+  takenSlots = t;
+}
+
+function getToday() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function fmtDate(s) {
+  const [y, m, d] = s.split('-');
+  const dow = ['日', '月', '火', '水', '木', '金', '土'][new Date(s).getDay()];
+  return `${parseInt(y)}年${parseInt(m)}月${parseInt(d)}日（${dow}）`;
+}
+
+function isClosed(dateStr) {
+  return CLOSED_DOW.includes(new Date(dateStr).getDay());
+}
+
+function getAvailable(dateStr) {
+  const taken = takenSlots[dateStr] || new Set();
+  return ALL_SLOTS.filter(s => !taken.has(s));
+}
+
+// ===== カレンダー =====
+
+function renderCal() {
+  const today = getToday();
+  const base = new Date(today);
+  base.setDate(1);
+  base.setMonth(base.getMonth() + calOffset);
+
+  const year = base.getFullYear();
+  const month = base.getMonth();
+  document.getElementById('cal-label').textContent = `${year}年${month + 1}月`;
+
+  const firstDow = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const container = document.getElementById('cal-days');
+  container.innerHTML = '';
+
+  for (let i = 0; i < firstDow; i++) {
+    container.appendChild(Object.assign(document.createElement('div'), { className: 'cal-day' }));
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dow = new Date(dateStr).getDay();
+    const el = document.createElement('div');
+    el.textContent = d;
+
+    let cls = 'cal-day';
+    if (dow === 0) cls += ' sun-color';
+    if (dow === 6) cls += ' sat-color';
+    if (dateStr === today) cls += ' today';
+    if (dateStr === selectedDate) cls += ' selected';
+
+    if (dateStr < today || isClosed(dateStr)) {
+      cls += ' disabled';
+    } else {
+      const avail = getAvailable(dateStr);
+      if (avail.length === 0) {
+        cls += ' full';
+      } else {
+        cls += ' available';
+        el.onclick = () => selectDate(dateStr);
+      }
+    }
+
+    el.className = cls;
+    container.appendChild(el);
+  }
+}
+
+function calShift(d) { calOffset += d; if (calOffset < 0) calOffset = 0; renderCal(); }
+
+function selectDate(dateStr) {
+  selectedDate = dateStr;
+  selectedTime = null;
+  renderCal();
+  renderSlots();
+  document.getElementById('card-slots').style.display = '';
+  document.getElementById('card-form').style.display = 'none';
+  setStep(2);
+  document.getElementById('card-slots').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function resetDate() {
+  selectedDate = null;
+  selectedTime = null;
+  renderCal();
+  document.getElementById('card-slots').style.display = 'none';
+  document.getElementById('card-form').style.display = 'none';
+  setStep(1);
+}
+
+// ===== 時間スロット =====
+
+function renderSlots() {
+  const taken = takenSlots[selectedDate] || new Set();
+  document.getElementById('slots-title').textContent = `${fmtDate(selectedDate)} の時間を選択`;
+  const grid = document.getElementById('slots-grid');
+  grid.innerHTML = '';
+  ALL_SLOTS.forEach(slot => {
+    const btn = document.createElement('button');
+    btn.textContent = slot;
+    btn.className = 'slot-btn' + (slot === selectedTime ? ' selected' : '');
+    if (taken.has(slot)) {
+      btn.disabled = true;
+    } else {
+      btn.onclick = () => selectTime(slot);
+    }
+    grid.appendChild(btn);
+  });
+}
+
+function selectTime(time) {
+  selectedTime = time;
+  renderSlots();
+  document.getElementById('form-summary').textContent = `📅 ${fmtDate(selectedDate)}　${selectedTime}〜`;
+  document.getElementById('card-form').style.display = '';
+  setStep(3);
+  document.getElementById('card-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function resetTime() {
+  selectedTime = null;
+  renderSlots();
+  document.getElementById('card-form').style.display = 'none';
+  setStep(2);
+}
+
+// ===== ステップ表示 =====
+
+function setStep(active) {
+  [1, 2, 3].forEach(n => {
+    const num = document.getElementById(`s${n}n`);
+    const lbl = document.getElementById(`s${n}l`);
+    num.className = 'step-num';
+    lbl.className = 'step-label';
+    if (n < active) { num.classList.add('done'); num.textContent = '✓'; }
+    else if (n === active) { num.classList.add('active'); lbl.classList.add('active'); num.textContent = n; }
+    else { num.textContent = n; }
+  });
+}
+
+// ===== 送信 =====
+
+async function submitBooking() {
+  const name    = document.getElementById('f-name').value.trim();
+  const phone   = document.getElementById('f-phone').value.trim();
+  const company = document.getElementById('f-company').value.trim();
+  const msg     = document.getElementById('f-msg').value.trim();
+
+  if (!name)  { alert('お名前を入力してください'); return; }
+  if (!phone) { alert('電話番号を入力してください'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '送信中...';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'loading-overlay';
+  overlay.innerHTML = '<div class="spinner"></div><span>予約を登録しています...</span>';
+  document.body.appendChild(overlay);
+
+  try {
+    // 直前に再チェック（競合防止）
+    await loadTaken();
+    if ((takenSlots[selectedDate] || new Set()).has(selectedTime)) {
+      alert('選択した時間帯はたった今埋まってしまいました。\n別の時間をお選びください。');
+      btn.disabled = false;
+      btn.textContent = '予約を確定する';
+      overlay.remove();
+      resetTime();
+      return;
+    }
+
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const booking = {
+      id,
+      client_name: name,
+      client_company: company || null,
+      client_phone: phone,
+      booked_date: selectedDate,
+      booked_time: selectedTime,
+      message: msg || null,
+      status: 'pending'
+    };
+
+    const res = await fetch(`${SB_URL}/rest/v1/schedule_bookings`, {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(booking)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'DB登録エラー');
+    }
+
+    // EmailJS で通知
+    try {
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+        to_email:       NOTIFY_EMAIL,
+        booked_date:    fmtDate(selectedDate),
+        booked_time:    selectedTime,
+        client_name:    name,
+        client_company: company || '（未入力）',
+        client_phone:   phone,
+        message:        msg || '（なし）'
+      });
+    } catch (emailErr) {
+      // メール失敗でも予約自体は成功
+      console.warn('メール送信エラー:', emailErr);
+    }
+
+    // 完了画面へ
+    ['card-cal', 'card-slots', 'card-form'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    document.querySelector('.steps').style.display = 'none';
+    document.getElementById('success-detail').innerHTML =
+      `<strong>日時</strong>：${fmtDate(selectedDate)} ${selectedTime}〜<br>` +
+      `<strong>お名前</strong>：${name} 様<br>` +
+      (company ? `<strong>会社名</strong>：${company}<br>` : '') +
+      `<strong>電話番号</strong>：${phone}`;
+    document.getElementById('success-screen').style.display = '';
+
+  } catch (err) {
+    alert('エラーが発生しました。時間をおいて再度お試しください。\n' + err.message);
+    btn.disabled = false;
+    btn.textContent = '予約を確定する';
+  } finally {
+    overlay.remove();
+  }
+}
+
+// ===== 初期化 =====
+
+async function init() {
+  const overlay = document.createElement('div');
+  overlay.className = 'loading-overlay';
+  overlay.innerHTML = '<div class="spinner"></div><span>空き状況を確認中...</span>';
+  document.body.appendChild(overlay);
+
+  try { await loadTaken(); }
+  catch (e) { console.warn('取得エラー:', e); }
+
+  overlay.remove();
+  renderCal();
+}
+
+init();
+</script>
+</body>
+</html>
