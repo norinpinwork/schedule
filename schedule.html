@@ -42,7 +42,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:#F4F3EF;color:#1A1A18;min-
 .cal-day.today{font-weight:700}
 .cal-day.today:not(.selected)::after{content:'';width:4px;height:4px;border-radius:50%;background:#2B59E0;position:absolute;bottom:3px}
 .cal-day.disabled{color:#D4D0C5}
-.cal-day.disabled.sun-color,.cal-day.disabled.sat-color{opacity:0.3}  
+.cal-day.disabled.sun-color,.cal-day.disabled.sat-color{opacity:0.3}
 .cal-day.full{color:#D4D0C5}
 .cal-day.full::after{content:'×';font-size:9px;color:#D4D0C5;position:absolute;bottom:1px}
 .cal-day.sun-color{color:#C0392B}
@@ -88,7 +88,8 @@ textarea.form-control{resize:vertical;min-height:80px}
   <div class="header">
     <div style="font-size:28px;margin-bottom:10px">📅</div>
     <h1>スケジュールのご予約</h1>
-    <p>Kyタイル株式会社 沖縄支店　新川です。<br>お忙しいところ恐れ入りますが、<br>お伺いしてもいい日をご登録お願いします。
+    <p>Kyタイル株式会社 沖縄支店　新川です。<br>お忙しいところ恐れ入りますが、<br>お伺いしてもいい日をご登録お願いします。</p>
+  </div>
 
   <!-- ステップ表示 -->
   <div class="steps">
@@ -197,7 +198,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const ALL_SLOTS = ['10:30','11:00','11:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30'];
 
 // 休日（0=日曜のみ。土曜は受付）
-const CLOSED_DOW = [0,6];
+const CLOSED_DOW = [0, 6];
 
 // ============================================================
 
@@ -218,10 +219,11 @@ async function sbGet(table, query = '') {
 
 async function loadTaken() {
   const today = getToday();
-  const [bookings, apos, visits] = await Promise.all([
+  const [bookings, apos, visits, customers] = await Promise.all([
     sbGet('schedule_bookings', `?booked_date=gte.${today}&status=neq.cancelled`).catch(() => []),
-    sbGet('apos', `?visit_date=gte.${today}`).catch(() => []),
+    sbGet('apos', `?deleted_at=is.null`).catch(() => []),
     sbGet('visits', `?visited_at=gte.${today}`).catch(() => []),
+    sbGet('customers', `?next_visit_datetime=gte.${today}&select=next_visit_datetime`).catch(() => []),
   ]);
 
   const t = {};
@@ -232,31 +234,68 @@ async function loadTaken() {
     t[b.booked_date].add(b.booked_time);
   });
 
-  // CRM アポ（時間付きのみ）
+  // 開始時間から90分間のスロットをブロック（90分後がスロット外の場合は次のスロットも含む）
+  function blockByTime(d, tmStr) {
+    if (!d || !tmStr || d < today) return;
+    const [h, m] = tmStr.split(':').map(Number);
+    const start = h * 60 + m;
+    const end = start + 90;
+    ALL_SLOTS.forEach(slot => {
+      const [sh, sm] = slot.split(':').map(Number);
+      const slotMin = sh * 60 + sm;
+      if (slotMin >= start && slotMin <= end) {
+        if (!t[d]) t[d] = new Set();
+        t[d].add(slot);
+      }
+    });
+    // 90分後の時間がスロットにない（昼休み等）場合、次のスロットも追加ブロック
+    const endInSlots = ALL_SLOTS.some(slot => {
+      const [sh, sm] = slot.split(':').map(Number);
+      return sh * 60 + sm === end;
+    });
+    if (!endInSlots) {
+      const nextSlot = ALL_SLOTS.find(slot => {
+        const [sh, sm] = slot.split(':').map(Number);
+        return sh * 60 + sm > end;
+      });
+      if (nextSlot) {
+        if (!t[d]) t[d] = new Set();
+        t[d].add(nextSlot);
+      }
+    }
+  }
+
+  // CRM アポ
   apos.forEach(a => {
     const d = a.visit_datetime ? a.visit_datetime.slice(0, 10) : a.visit_date;
-    const tm = a.visit_datetime && a.visit_datetime.length > 10 ? a.visit_datetime.slice(11, 16) : null;
-    if (d && tm && ALL_SLOTS.includes(tm)) {
-      if (!t[d]) t[d] = new Set();
-      t[d].add(tm);
-    }
+    const tmStr = a.visit_datetime && a.visit_datetime.length > 10 ? a.visit_datetime.slice(11, 16) : null;
+    blockByTime(d, tmStr);
   });
 
-  // CRM 訪問履歴（時間付きのみ）
+  // CRM 訪問履歴
   visits.forEach(v => {
     const d = v.visited_at ? v.visited_at.slice(0, 10) : null;
-    const tm = v.visit_time || null;
-    if (d && tm && ALL_SLOTS.includes(tm)) {
-      if (!t[d]) t[d] = new Set();
-      t[d].add(tm);
-    }
+    const tmStr = v.visit_time ? v.visit_time.slice(0, 5) : null;
+    blockByTime(d, tmStr);
+  });
+
+  // customers の next_visit_datetime（訪問予定）
+  customers.forEach(c => {
+    if (!c.next_visit_datetime || c.next_visit_datetime.length <= 10) return;
+    const d = c.next_visit_datetime.slice(0, 10);
+    const tmStr = c.next_visit_datetime.slice(11, 16);
+    blockByTime(d, tmStr);
   });
 
   takenSlots = t;
 }
 
 function getToday() {
-  return new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 function fmtDate(s) {
