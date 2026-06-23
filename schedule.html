@@ -239,11 +239,12 @@ async function loadTaken() {
     if (!d || !tmStr || d < today) return;
     const [h, m] = tmStr.split(':').map(Number);
     const start = h * 60 + m;
+    const before = start - 90;
     const end = start + 90;
     ALL_SLOTS.forEach(slot => {
       const [sh, sm] = slot.split(':').map(Number);
       const slotMin = sh * 60 + sm;
-      if (slotMin >= start && slotMin <= end) {
+      if (slotMin >= before && slotMin <= end) {
         if (!t[d]) t[d] = new Set();
         t[d].add(slot);
       }
