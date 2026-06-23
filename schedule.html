@@ -230,8 +230,7 @@ async function loadTaken() {
 
   // 既存予約
   bookings.forEach(b => {
-    if (!t[b.booked_date]) t[b.booked_date] = new Set();
-    t[b.booked_date].add(b.booked_time);
+    blockByTime(b.booked_date, b.booked_time);
   });
 
   // 開始時間から90分間のスロットをブロック（90分後がスロット外の場合は次のスロットも含む）
